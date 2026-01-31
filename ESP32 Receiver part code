@@ -1,0 +1,94 @@
+#include <Adafruit_GFX.h>
+#include <Adafruit_ILI9341.h>
+
+// TFT pins
+#define TFT_CS   5
+#define TFT_DC   2
+#define TFT_RST  4
+Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
+
+// LED & Active Buzzer
+#define LED_PIN 26
+#define BUZZER  27
+
+String receivedData = "T=36.5,H=70"; // initial
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+  digitalWrite(BUZZER, LOW);
+
+  tft.begin();
+  tft.setRotation(1);
+  tft.fillScreen(ILI9341_BLACK);
+
+  tft.setTextSize(2);
+  tft.setTextColor(ILI9341_CYAN);
+  tft.setCursor(10,10);
+  tft.println("LoRa RECEIVER");
+
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setCursor(10,40);
+  tft.println("Waiting for data...");
+}
+
+void loop() {
+  // ---------------- READ SERIAL INPUT ----------------
+  if (Serial.available()) {
+    receivedData = Serial.readStringUntil('\n'); // read line
+    receivedData.trim(); // remove spaces and newline
+  }
+
+  // ---------------- CLEAR TFT ----------------
+  tft.fillRect(0, 60, 320, 180, ILI9341_BLACK);
+
+  // ---------------- DISPLAY RECEIVED DATA ----------------
+  tft.setCursor(10, 60);
+  tft.setTextColor(ILI9341_GREEN);
+  tft.println("Data Received:");
+
+  tft.setCursor(10, 90);
+  tft.setTextColor(ILI9341_YELLOW);
+  tft.println(receivedData);
+
+  // ---------------- PARSE TEMP & HUMIDITY ----------------
+  float temp = 0, hum = 0;
+
+  int tPos = receivedData.indexOf("T=");
+  int hPos = receivedData.indexOf("H=");
+
+  if (tPos != -1 && hPos != -1) {
+    String tVal = receivedData.substring(tPos + 2, receivedData.indexOf(",", tPos));
+    String hVal = receivedData.substring(hPos + 2);
+    tVal.trim();
+    hVal.trim();
+    temp = tVal.toFloat();
+    hum = hVal.toFloat();
+  }
+
+  // ---------------- ALERT LOGIC ----------------
+  if(temp >= 35 || hum >= 60){
+    tft.setCursor(10,140);
+    tft.setTextColor(ILI9341_RED);
+    tft.println("ALERT MODE!");
+    tft.println("Mail Sent");
+
+    // LED blink + buzzer
+    for(int i=0;i<4;i++){
+      digitalWrite(LED_PIN,HIGH);
+      digitalWrite(BUZZER,HIGH);
+      delay(250);
+      digitalWrite(LED_PIN,LOW);
+      digitalWrite(BUZZER,LOW);
+      delay(250);
+    }
+  } else {
+    digitalWrite(LED_PIN,LOW);
+    digitalWrite(BUZZER,LOW);
+  }
+
+  delay(500);
+}
